@@ -1,16 +1,30 @@
-import { useState } from 'react'
-import { Routes, Route } from 'react-router'
-
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import Home from './pages/home';
+import Login from './pages/login';
+import Signup from './pages/signup';
+import Profile from './pages/profile';
+import Posts from './pages/posts';
+import Navbar from './components/Navbar';
+import './App.css';
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <Routes>
-      </Routes>
-    </>
-  )
+    <BrowserRouter>
+     
+      <Navbar />
+
+      <main className="min-h-screen bg-gray-50">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/posts" element={<Posts />} />
+        </Routes>
+      </main>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;

@@ -8,6 +8,11 @@ export default defineConfig({
   plugins: [
     react(),
     babel({ presets: [reactCompilerPreset()] }),
-    tailwindcss,
+    tailwindcss(),
   ],
+  server: {
+    proxy: {
+      '/api': 'http://localhost:5000',
+    },
+  },
 })
