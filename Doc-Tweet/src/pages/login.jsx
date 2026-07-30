@@ -1,7 +1,6 @@
-   <Routes>
-       <Route path="/" element={<Home />} />
-       <Route path="/login" element={<Login />} />
-       <Route path="/signup" element={<Signup />} />
-       <Route path="/profile" element={<Profile />} />
-       <Route path="/posts" element={<Posts />} />
-     </Routes>
+import React from "react";
+import { Routes, Route } from 'react-router-dom';
+
+export default function Login() { return <div className="p-8">Login Page</div>; }   
+   
+  

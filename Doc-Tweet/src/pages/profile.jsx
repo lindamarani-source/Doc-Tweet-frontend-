@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5555';
 
 export default function Profile() {
   const [profile, setProfile] = useState(null);
@@ -60,6 +60,7 @@ export default function Profile() {
 
       if (res.ok) {
         setMessage('Profile updated successfully!');
+        setProfile(prev => ({ ...prev, username: data.username || username }));
         setNewPassword('');
       } else {
         setMessage(data.msg || 'Update failed');
@@ -89,7 +90,7 @@ export default function Profile() {
 
       {profile && (
         <>
-          {}
+          {/* Account Settings */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h3 className="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100">
               Account Settings
@@ -136,10 +137,10 @@ export default function Profile() {
             </form>
           </div>
 
-          {}
+          {/* Favorite Doctors */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h3 className="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
-              Favorite Doctors <span className="text-red-500"></span>
+              Favorite Doctors
             </h3>
 
             {!profile.favorite_doctors || profile.favorite_doctors.length === 0 ? (
