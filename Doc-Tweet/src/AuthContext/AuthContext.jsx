@@ -1,27 +1,29 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://doc-tweet-backend.onrender.com";
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(() => localStorage.getItem("token") || null);
+  const [token, setToken] = useState(() => localStorage.getItem("token") || localStorage.getItem("doctweet_token") || null);
   const [loading, setLoading] = useState(true);
 
   const login = (newToken, userData) => {
     localStorage.setItem("token", newToken);
+    localStorage.removeItem("doctweet_token");
     setToken(newToken);
     setUser(userData);
   };
 
   const logout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("doctweet_token");
     setToken(null);
     setUser(null);
   };
 
   useEffect(() => {
-    const savedToken = localStorage.getItem("token");
+    const savedToken = localStorage.getItem("token") || localStorage.getItem("doctweet_token");
     if (!savedToken) {
       setLoading(false);
       return;

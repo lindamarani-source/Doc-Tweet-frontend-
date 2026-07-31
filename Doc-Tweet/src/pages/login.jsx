@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext/AuthContext';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://doc-tweet-backend.onrender.com';
 
 function Login() {
   const navigate = useNavigate();
@@ -14,6 +14,12 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (!form.username.trim() || !form.password.trim()) {
+      setError('Username and password are required.');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -22,18 +28,29 @@ function Login() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          username: form.username.trim(),
+          password: form.password,
+        }),
       });
-      const data = await response.json();
+
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data.error || data.msg || 'Login failed');
+        throw new Error(data.error || data.msg || data.message || 'Login failed');
       }
 
-      login(data.access_token, data.user);
+      const token = data.access_token || data.token || data.accessToken;
+      const user = data.user || data.member || data.profile || null;
+
+      if (!token) {
+        throw new Error('The server did not return a valid authentication token.');
+      }
+
+      login(token, user);
       navigate('/');
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Login failed');
     } finally {
       setSubmitting(false);
     }

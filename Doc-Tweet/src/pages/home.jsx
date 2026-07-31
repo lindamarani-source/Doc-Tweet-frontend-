@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://doc-tweet-backend.onrender.com";
 
 // home page component
 function Home() {
@@ -14,7 +14,7 @@ function Home() {
   const [ansLoading, setAnsLoading] = useState(false);
 
   // get token from localStorage since AuthContext doesnt expose it
-  var token = localStorage.getItem("token") || "";
+  var token = localStorage.getItem("token") || localStorage.getItem("doctweet_token") || "";
 
   // fetch the feed
   useEffect(() => {

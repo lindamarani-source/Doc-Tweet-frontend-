@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://doc-tweet-backend.onrender.com';
 
 export default function Profile() {
   const [profile, setProfile] = useState(null);
@@ -8,7 +8,7 @@ export default function Profile() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('token') || localStorage.getItem('doctweet_token');
 
   useEffect(() => {
     if (!token) {
