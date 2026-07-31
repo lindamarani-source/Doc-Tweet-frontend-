@@ -5,11 +5,10 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5555';
 export default function Profile() {
   const [profile, setProfile] = useState(null);
   const [username, setUsername] = useState('');
-  const [newPassword, setNewPassword] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const token = localStorage.getItem('access_token');
+  const token = localStorage.getItem('token');
 
   useEffect(() => {
     if (!token) {
@@ -18,22 +17,22 @@ export default function Profile() {
       return;
     }
 
-    fetch(`${API_BASE}/api/profile`, {
+    fetch(`${API_BASE}/api/current_user`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`
-      }
+        Authorization: `Bearer ${token}`,
+      },
     })
-      .then(res => {
+      .then((res) => {
         if (!res.ok) throw new Error('Failed to load profile');
         return res.json();
       })
-      .then(data => {
+      .then((data) => {
         setProfile(data);
         setUsername(data.username || '');
         setLoading(false);
       })
-      .catch(err => {
+      .catch((err) => {
         setMessage(err.message);
         setLoading(false);
       });
@@ -51,8 +50,7 @@ export default function Profile() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          username: username,
-          ...(newPassword && { password: newPassword }) 
+          username: username
         })
       });
 
@@ -61,7 +59,6 @@ export default function Profile() {
       if (res.ok) {
         setMessage('Profile updated successfully!');
         setProfile(prev => ({ ...prev, username: data.username || username }));
-        setNewPassword('');
       } else {
         setMessage(data.msg || 'Update failed');
       }
@@ -87,7 +84,7 @@ export default function Profile() {
           {message}
         </div>
       )}
-
+      
       {profile && (
         <>
           {/* Account Settings */}
@@ -96,45 +93,27 @@ export default function Profile() {
               Account Settings
             </h3>
 
-            <form onSubmit={handleUpdate} className="space-y-4">
+            <div className="space-y-4">
               <div className="text-sm text-gray-600">
-                <span className="font-semibold text-gray-700">Email: </span> 
+                <span className="font-semibold text-gray-700">Email: </span>
                 {profile.email}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Username
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  New Password <span className="text-xs text-gray-400 font-normal">(leave blank to keep current)</span>
-                </label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Enter new password"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                />
+              <div className="text-sm text-gray-600">
+                <span className="font-semibold text-gray-700">Role: </span>
+                {profile.role || 'member'}
               </div>
-
-              <button
-                type="submit"
-                className="w-full sm:w-auto px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm cursor-pointer"
-              >
-                Save Changes
-              </button>
-            </form>
+            </div>
           </div>
 
           {/* Favorite Doctors */}
