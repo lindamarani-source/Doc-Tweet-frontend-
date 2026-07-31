@@ -1,16 +1,10 @@
-import React from "react";
-import { Routes, Route } from 'react-router-dom';
-
-export default function Login() { return <div className="p-8">Login Page</div>; }   
-   
-  
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext/AuthContext';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://doc-tweet-backend.onrender.com';
 
-function Login() {
+export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [form, setForm] = useState({ username: '', password: '' });
@@ -43,7 +37,7 @@ function Login() {
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data.error || data.msg || data.message || 'Login failed');
+        throw new Error(data.error || data.message || 'Login failed');
       }
 
       const token = data.access_token || data.token || data.accessToken;
@@ -102,11 +96,9 @@ function Login() {
         </form>
       </div>
       <div className="mt-4 text-center text-sm text-gray-600">
-        Don&apos;t have an account?{' '}
+        Don't have an account?{' '}
         <Link to="/signup" className="text-blue-600 font-medium">Register</Link>
       </div>
     </div>
   );
 }
-
-export default Login;

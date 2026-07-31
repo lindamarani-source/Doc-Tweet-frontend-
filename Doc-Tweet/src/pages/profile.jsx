@@ -1,76 +1,57 @@
-import React, { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useAuth } from '../AuthContext/AuthContext';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://doc-tweet-backend.onrender.com';
 
 export default function Profile() {
-  const [profile, setProfile] = useState(null);
-  const [username, setUsername] = useState('');
+  const { user, token } = useAuth();
+  const [username, setUsername] = useState(user?.username || '');
   const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  const token = localStorage.getItem('token') || localStorage.getItem('doctweet_token');
-
-  useEffect(() => {
-    if (!token) {
-      setMessage('No active session. Please log in.');
-      setLoading(false);
-      return;
-    }
-
-    fetch(`${API_BASE}/api/current_user`, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to load profile');
-        return res.json();
-      })
-      .then((data) => {
-        setProfile(data);
-        setUsername(data.username || '');
-        setLoading(false);
-      })
-      .catch((err) => {
-        setMessage(err.message);
-        setLoading(false);
-      });
-  }, [token]);
+  const authToken = token || localStorage.getItem('token') || localStorage.getItem('doctweet_token') || '';
 
   const handleUpdate = async (e) => {
     e.preventDefault();
     setMessage('');
+
+    if (!authToken) {
+      setMessage('No active session. Please log in.');
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const res = await fetch(`${API_BASE}/api/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
-          username: username
-        })
+          username: username,
+        }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
         setMessage('Profile updated successfully!');
-        setProfile(prev => ({ ...prev, username: data.username || username }));
       } else {
-        setMessage(data.msg || 'Update failed');
+        setMessage(data.error || data.message || 'Profile update is not yet available on the server.');
       }
     } catch (err) {
       setMessage('Server error while saving profile updates.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (loading) {
+  if (!user) {
     return (
       <div className="flex justify-center items-center min-h-[40vh]">
-        <p className="text-gray-500 font-medium animate-pulse">Loading profile...</p>
+        <p className="text-gray-500 font-medium">Loading profile...</p>
       </div>
     );
   }
@@ -84,67 +65,79 @@ export default function Profile() {
           {message}
         </div>
       )}
-      
-      {profile && (
-        <>
-          {/* Account Settings */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100">
-              Account Settings
-            </h3>
 
-            <div className="space-y-4">
-              <div className="text-sm text-gray-600">
-                <span className="font-semibold text-gray-700">Email: </span>
-                {profile.email}
-              </div>
+      {/* Account Settings */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h3 className="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100">
+          Account Settings
+        </h3>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                />
-              </div>
+        <div className="space-y-4">
+          <div className="text-sm text-gray-600">
+            <span className="font-semibold text-gray-700">Email: </span>
+            {user.email}
+          </div>
 
-              <div className="text-sm text-gray-600">
-                <span className="font-semibold text-gray-700">Role: </span>
-                {profile.role || 'member'}
-              </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+            />
+          </div>
+
+          <div className="text-sm text-gray-600">
+            <span className="font-semibold text-gray-700">Role: </span>
+            {user.role || 'member'}
+          </div>
+
+          {user.is_verified !== undefined && (
+            <div className="text-sm text-gray-600">
+              <span className="font-semibold text-gray-700">Verified: </span>
+              {user.is_verified ? 'Yes' : 'No'}
             </div>
-          </div>
+          )}
 
-          {/* Favorite Doctors */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
-              Favorite Doctors
-            </h3>
+          <button
+            type="button"
+            onClick={handleUpdate}
+            disabled={loading}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-60"
+          >
+            {loading ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
 
-            {!profile.favorite_doctors || profile.favorite_doctors.length === 0 ? (
-              <p className="text-gray-500 italic text-sm">
-                You haven't saved any favorite doctors yet.
-              </p>
-            ) : (
-              <ul className="divide-y divide-gray-100">
-                {profile.favorite_doctors.map((doc) => (
-                  <li key={doc.id} className="py-3 flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-gray-800">
-                        Dr. {doc.name || doc.username}
-                      </p>
-                      {doc.specialty && (
-                        <p className="text-sm text-gray-500">{doc.specialty}</p>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </>
-      )}
+      {/* Favorite Doctors */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h3 className="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
+          Favorite Doctors
+        </h3>
+
+        {!user.favorite_doctors || user.favorite_doctors.length === 0 ? (
+          <p className="text-gray-500 italic text-sm">
+            You haven't saved any favorite doctors yet.
+          </p>
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {user.favorite_doctors.map((doc) => (
+              <li key={doc.id} className="py-3 flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-gray-800">
+                    Dr. {doc.name || doc.username}
+                  </p>
+                  {doc.specialty && (
+                    <p className="text-sm text-gray-500">{doc.specialty}</p>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

@@ -42,7 +42,7 @@ export function AuthProvider({ children }) {
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data?.msg || "Invalid token");
+          throw new Error(data?.error || data?.message || "Invalid token");
         }
 
         setUser(data);

@@ -1,11 +1,9 @@
-import React from "react";
-export default function Signup() { return <div className="p-8">Signup Page</div>; }
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://doc-tweet-backend.onrender.com';
 
-function Signup() {
+export default function Signup() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     username: '',
@@ -14,8 +12,8 @@ function Signup() {
     confirm_pass: '',
     role: 'member',
     institution: '',
+    specialization: '',
   });
-  const [cvFile, setCvFile] = useState(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -37,16 +35,9 @@ function Signup() {
       return;
     }
 
-    if (isDoctor) {
-      if (!form.institution.trim()) {
-        setError('Please enter your institution before registering as a doctor.');
-        return;
-      }
-
-      if (!cvFile) {
-        setError('Please upload your CV before registering as a doctor.');
-        return;
-      }
+    if (isDoctor && !form.institution.trim()) {
+      setError('Please enter your institution before registering as a doctor.');
+      return;
     }
 
     setSubmitting(true);
@@ -57,43 +48,32 @@ function Signup() {
         email: form.email.trim(),
         password: form.password,
         confirm_pass: form.confirm_pass,
-        role: form.role,
       };
 
-      let requestOptions = {
+      // Use the correct endpoint based on role
+      const endpoint = isDoctor
+        ? '/api/auth/register/doctor'
+        : '/api/auth/register/member';
+
+      if (isDoctor) {
+        payload.institution = form.institution.trim();
+        payload.specialization = form.specialization.trim();
+      }
+
+      const response = await fetch(`${API_BASE}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
-      };
+      });
 
-      if (isDoctor) {
-        payload.institution = form.institution.trim();
-        if (cvFile) {
-          const formData = new FormData();
-          formData.append('username', form.username.trim());
-          formData.append('email', form.email.trim());
-          formData.append('password', form.password);
-          formData.append('confirm_pass', form.confirm_pass);
-          formData.append('role', form.role);
-          formData.append('institution', form.institution.trim());
-          formData.append('cv', cvFile, cvFile.name);
-
-          requestOptions = {
-            method: 'POST',
-            body: formData,
-          };
-        }
-      }
-
-      const response = await fetch(`${API_BASE}/api/auth/register/member`, requestOptions);
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
         const details = Array.isArray(data.errors)
           ? data.errors.join(' ')
-          : data.error || data.msg || data.message || 'Registration failed';
+          : data.error || data.message || 'Registration failed';
         throw new Error(details);
       }
 
@@ -165,16 +145,16 @@ function Signup() {
                 />
               </div>
               <div>
-                <label htmlFor="cv" className="block text-sm font-medium text-gray-700 mb-1">CV Upload</label>
+                <label htmlFor="specialization" className="block text-sm font-medium text-gray-700 mb-1">Specialization</label>
                 <input
-                  id="cv"
-                  name="cv"
-                  type="file"
-                  accept=".pdf,.doc,.docx"
-                  onChange={(e) => setCvFile(e.target.files?.[0] || null)}
+                  id="specialization"
+                  name="specialization"
+                  type="text"
+                  value={form.specialization}
+                  onChange={(e) => setForm((current) => ({ ...current, specialization: e.target.value }))}
+                  placeholder="e.g. Cardiology, Pediatrics"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 />
-                {cvFile && <p className="mt-2 text-sm text-gray-600">Selected file: {cvFile.name}</p>}
               </div>
             </>
           )}
@@ -218,5 +198,3 @@ function Signup() {
     </div>
   );
 }
-
-export default Signup;
