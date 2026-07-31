@@ -1,55 +1,41 @@
-import React from 'react';
-
-export default function Home() {
-  return (
-    <div className="max-w-4xl mx-auto p-8 text-center">
-      <h1 className="text-3xl font-bold text-gray-800 mb-4">Welcome to DocTweet</h1>
-      <a 
-        href="/posts" 
-        className="inline-block bg-blue-600 text-white px-6 py-2.5 rounded-md hover:bg-blue-700 transition-colors"
-      >
-        View Medical Questions (/posts)
-      </a>
-    </div>
-  );
-}
 import { useState, useEffect } from "react";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5555";
 
-// home page component
+// Home page component
 function Home() {
   const [tab, setTab] = useState("all");
   const [feed, setFeed] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [page, setPage] = useState(1);
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [answers, setAnswers] = useState([]);
   const [ansLoading, setAnsLoading] = useState(false);
 
-  // get token from localStorage since AuthContext doesnt expose it
-  var token = localStorage.getItem("token") || "";
+  // Get token from localStorage
+  const token = localStorage.getItem("token") || "";
 
-  // fetch the feed
+  // Fetch the feed
   useEffect(() => {
     setLoading(true);
 
+    const headers = token ? { Authorization: "Bearer " + token } : {};
+
     Promise.all([
-      fetch(`${API_BASE}/api/getposts`, {
-        headers: {
-          Authorization: "Bearer " + token,
-        },
-      }),
-      fetch(`${API_BASE}/api/getquestions`, {
-        headers: {
-          Authorization: "Bearer " + token,
-        },
-      }),
+      fetch(`${API_BASE}/api/getposts`, { headers }),
+      fetch(`${API_BASE}/api/getquestions`, { headers }),
     ])
       .then(async ([postsRes, questionsRes]) => {
+        // Defensive check for JSON headers
+        const postsType = postsRes.headers.get("content-type") || "";
+        const questionsType = questionsRes.headers.get("content-type") || "";
+
+        if (!postsType.includes("application/json") || !questionsType.includes("application/json")) {
+          throw new Error("Received non-JSON response from backend. Make sure Flask is running on port 5555.");
+        }
+
         if (!postsRes.ok || !questionsRes.ok) {
-          throw new Error("Something went wrong");
+          throw new Error("Failed to retrieve posts or questions.");
         }
 
         const [postsData, questionsData] = await Promise.all([
@@ -57,8 +43,11 @@ function Home() {
           questionsRes.json(),
         ]);
 
-        const posts = (postsData || []).map((item) => ({ ...item, type: "post" }));
-        const questions = (questionsData || []).map((item) => ({ ...item, type: "question" }));
+        const postsArr = Array.isArray(postsData) ? postsData : [];
+        const questionsArr = Array.isArray(questionsData) ? questionsData : [];
+
+        const posts = postsArr.map((item) => ({ ...item, type: "post" }));
+        const questions = questionsArr.map((item) => ({ ...item, type: "question" }));
 
         const merged = [...posts, ...questions].sort((a, b) => {
           const aDate = new Date(a.created_at || 0).getTime();
@@ -76,25 +65,39 @@ function Home() {
         setFeed(filtered);
         setLoading(false);
         setErr("");
-        setPage(1);
       })
       .catch((e) => {
-        console.log(e);
-        setErr("Failed to load feed");
+        console.error("Feed error:", e);
+        setErr(e.message || "Failed to load feed");
         setLoading(false);
       });
   }, [tab, token]);
 
-  // load more posts
+  // Load more posts placeholder
   function loadMore() {
     setLoading(false);
   }
 
-  // open question details
+  // Open question details & fetch answers
   function openQuestion(qid) {
     setSelectedQuestion(qid);
-    setAnsLoading(false);
+    setAnsLoading(true);
     setAnswers([]);
+
+    fetch(`${API_BASE}/api/questions/${qid}/answers`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Could not fetch answers");
+        return res.json();
+      })
+      .then((data) => {
+        setAnswers(Array.isArray(data) ? data : []);
+      })
+      .catch((e) => {
+        console.error("Answers error:", e);
+      })
+      .finally(() => {
+        setAnsLoading(false);
+      });
   }
 
   function closeModal() {
@@ -102,12 +105,13 @@ function Home() {
     setAnswers([]);
   }
 
-  // format date
+  // Format date safely
   function timeAgo(iso) {
     if (!iso) return "";
-    var d = new Date(iso);
-    var now = new Date();
-    var sec = (now - d) / 1000;
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    const now = new Date();
+    const sec = (now - d) / 1000;
     if (sec < 60) return "now";
     if (sec < 3600) return Math.floor(sec / 60) + "m";
     if (sec < 86400) return Math.floor(sec / 3600) + "h";
@@ -126,7 +130,7 @@ function Home() {
         borderRight: "1px solid #e1e8ed",
       }}
     >
-      {/* header */}
+      {/* Header */}
       <div
         style={{
           position: "sticky",
@@ -165,25 +169,28 @@ function Home() {
         </div>
       </div>
 
-      {/* feed */}
+      {/* Feed */}
       <div>
         {loading && feed.length === 0 && (
-          <div
-            style={{ textAlign: "center", padding: "40px", color: "#536471" }}
-          >
+          <div style={{ textAlign: "center", padding: "40px", color: "#536471" }}>
             Loading...
           </div>
         )}
 
         {err && (
-          <div
-            style={{ textAlign: "center", padding: "40px", color: "red" }}
-          >
+          <div style={{ textAlign: "center", padding: "40px", color: "#dc2626" }}>
             {err}
             <br />
             <button
               onClick={() => window.location.reload()}
-              style={{ marginTop: "10px", color: "#1d9bf0" }}
+              style={{
+                marginTop: "12px",
+                color: "#1d9bf0",
+                background: "none",
+                border: "none",
+                fontWeight: "600",
+                cursor: "pointer",
+              }}
             >
               Refresh
             </button>
@@ -191,20 +198,19 @@ function Home() {
         )}
 
         {!loading && feed.length === 0 && !err && (
-          <div
-            style={{ textAlign: "center", padding: "40px", color: "#536471" }}
-          >
+          <div style={{ textAlign: "center", padding: "40px", color: "#536471" }}>
             Nothing here yet
           </div>
         )}
 
         {feed.map((item, idx) => {
           if (item.type === "post") {
-            var author = item.author || {};
-            var initial = (author.username || "U").charAt(0).toUpperCase();
+            const author = typeof item.author === "object" && item.author !== null ? item.author : { username: typeof item.author === "string" ? item.author : "User" };
+            const initial = (author.username || "U").charAt(0).toUpperCase();
+
             return (
               <div
-                key={idx}
+                key={item.id || idx}
                 style={{
                   borderBottom: "1px solid #e1e8ed",
                   padding: "16px 20px",
@@ -273,8 +279,7 @@ function Home() {
                       )}
                     </div>
                     <div style={{ color: "#536471", fontSize: "15px" }}>
-                      @{author.username || "unknown"} ·{" "}
-                      {timeAgo(item.created_at)}
+                      @{author.username || "unknown"} · {timeAgo(item.created_at)}
                     </div>
                     {author.specialization && (
                       <div style={{ fontSize: "13px", color: "#536471" }}>
@@ -293,15 +298,17 @@ function Home() {
                     >
                       Post
                     </div>
-                    <div
-                      style={{
-                        fontSize: "17px",
-                        fontWeight: 700,
-                        marginBottom: "6px",
-                      }}
-                    >
-                      {item.title}
-                    </div>
+                    {item.title && (
+                      <div
+                        style={{
+                          fontSize: "17px",
+                          fontWeight: 700,
+                          marginBottom: "6px",
+                        }}
+                      >
+                        {item.title}
+                      </div>
+                    )}
                     <div
                       style={{
                         fontSize: "15px",
@@ -343,13 +350,14 @@ function Home() {
               </div>
             );
           } else {
-            // question
-            var q = item;
-            var qAuthor = q.author;
-            var isAnon = q.is_anonymous;
+            // Question item
+            const q = item;
+            const qAuthor = typeof q.author === "object" && q.author !== null ? q.author : { username: typeof q.author === "string" ? q.author : "User" };
+            const isAnon = q.is_anonymous;
+
             return (
               <div
-                key={idx}
+                key={q.id || idx}
                 style={{
                   borderBottom: "1px solid #e1e8ed",
                   padding: "16px 20px",
@@ -392,7 +400,7 @@ function Home() {
                         flexShrink: 0,
                       }}
                     >
-                      {qAuthor && qAuthor.avatar_url ? (
+                      {qAuthor.avatar_url ? (
                         <img
                           src={qAuthor.avatar_url}
                           style={{
@@ -404,13 +412,7 @@ function Home() {
                           alt=""
                         />
                       ) : (
-                        (
-                          qAuthor && qAuthor.username
-                            ? qAuthor.username
-                            : "U"
-                        )
-                          .charAt(0)
-                          .toUpperCase()
+                        (qAuthor.username || "U").charAt(0).toUpperCase()
                       )}
                     </div>
                   )}
@@ -445,13 +447,9 @@ function Home() {
                       ) : (
                         <>
                           <span style={{ fontWeight: 700, color: "#0f1419" }}>
-                            {qAuthor && qAuthor.full_name
-                              ? qAuthor.full_name
-                              : qAuthor && qAuthor.username
-                              ? qAuthor.username
-                              : "Unknown"}
+                            {qAuthor.full_name || qAuthor.username || "Unknown"}
                           </span>
-                          {qAuthor && qAuthor.is_verified && (
+                          {qAuthor.is_verified && (
                             <span style={{ color: "#1d9bf0" }}>&#10003;</span>
                           )}
                         </>
@@ -474,8 +472,7 @@ function Home() {
                     </div>
                     {!isAnon && qAuthor && (
                       <div style={{ color: "#536471", fontSize: "15px" }}>
-                        @{qAuthor.username || "unknown"} ·{" "}
-                        {timeAgo(q.created_at)}
+                        @{qAuthor.username || "unknown"} · {timeAgo(q.created_at)}
                       </div>
                     )}
                     <div
@@ -490,15 +487,17 @@ function Home() {
                     >
                       Question
                     </div>
-                    <div
-                      style={{
-                        fontSize: "17px",
-                        fontWeight: 700,
-                        marginBottom: "6px",
-                      }}
-                    >
-                      {q.title}
-                    </div>
+                    {q.title && (
+                      <div
+                        style={{
+                          fontSize: "17px",
+                          fontWeight: 700,
+                          marginBottom: "6px",
+                        }}
+                      >
+                        {q.title}
+                      </div>
+                    )}
                     <div
                       style={{
                         fontSize: "15px",
@@ -509,7 +508,7 @@ function Home() {
                       {q.content}
                     </div>
 
-                    {/* preview answers */}
+                    {/* Answers Preview */}
                     {q.top_answers && q.top_answers.length > 0 && (
                       <div
                         style={{
@@ -536,12 +535,7 @@ function Home() {
                                 marginBottom: "4px",
                               }}
                             >
-                              <span
-                                style={{
-                                  fontWeight: 700,
-                                  fontSize: "13px",
-                                }}
-                              >
+                              <span style={{ fontWeight: 700, fontSize: "13px" }}>
                                 {ans.author && ans.author.username
                                   ? ans.author.username
                                   : "Unknown"}
@@ -573,7 +567,7 @@ function Home() {
                             display: "inline-block",
                           }}
                         >
-                          View all {q.answer_count} answers
+                          View all {q.answer_count || 0} answers
                         </span>
                       </div>
                     )}
@@ -617,7 +611,7 @@ function Home() {
         )}
       </div>
 
-      {/* answers modal */}
+      {/* Answers Modal */}
       {selectedQuestion && (
         <div
           style={{
@@ -673,43 +667,26 @@ function Home() {
                 &times;
               </button>
             </div>
-            <div
-              style={{
-                overflowY: "auto",
-                padding: "0 20px",
-                flex: 1,
-              }}
-            >
+            <div style={{ overflowY: "auto", padding: "0 20px", flex: 1 }}>
               {ansLoading && (
-                <div
-                  style={{
-                    textAlign: "center",
-                    padding: "40px",
-                    color: "#536471",
-                  }}
-                >
+                <div style={{ textAlign: "center", padding: "40px", color: "#536471" }}>
                   Loading answers...
                 </div>
               )}
 
               {!ansLoading && answers.length === 0 && (
-                <div
-                  style={{
-                    textAlign: "center",
-                    padding: "40px",
-                    color: "#536471",
-                  }}
-                >
+                <div style={{ textAlign: "center", padding: "40px", color: "#536471" }}>
                   No answers yet
                 </div>
               )}
 
               {answers.map((ans, i) => {
-                var a = ans.author || {};
-                var init = (a.username || "U").charAt(0).toUpperCase();
+                const a = typeof ans.author === "object" && ans.author !== null ? ans.author : { username: typeof ans.author === "string" ? ans.author : "User" };
+                const init = (a.username || "U").charAt(0).toUpperCase();
+
                 return (
                   <div
-                    key={i}
+                    key={ans.id || i}
                     style={{
                       padding: "16px 0",
                       borderBottom: "1px solid #e1e8ed",
@@ -757,9 +734,7 @@ function Home() {
                         <div style={{ fontWeight: 700, fontSize: "14px" }}>
                           {a.full_name || a.username || "Unknown"}
                           {a.is_verified && (
-                            <span
-                              style={{ color: "#1d9bf0", fontSize: "14px" }}
-                            >
+                            <span style={{ color: "#1d9bf0", fontSize: "14px" }}>
                               {" "}
                               &#10003;
                             </span>
@@ -781,13 +756,10 @@ function Home() {
                           )}
                         </div>
                         <div style={{ fontSize: "13px", color: "#536471" }}>
-                          @{a.username || "unknown"} ·{" "}
-                          {timeAgo(ans.created_at)}
+                          @{a.username || "unknown"} · {timeAgo(ans.created_at)}
                         </div>
                         {a.specialization && (
-                          <div
-                            style={{ fontSize: "12px", color: "#536471" }}
-                          >
+                          <div style={{ fontSize: "12px", color: "#536471" }}>
                             {a.specialization}
                           </div>
                         )}

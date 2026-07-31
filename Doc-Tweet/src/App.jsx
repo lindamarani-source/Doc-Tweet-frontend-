@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import Home from './pages/home';
 import Login from './pages/login';
 import Signup from './pages/signup';
@@ -10,8 +10,7 @@ import './index.css';
 
 function App() {
   return (
-    <BrowserRouter>
-     
+    <>
       <Navbar />
 
       <main className="min-h-screen bg-gray-50">
@@ -23,7 +22,7 @@ function App() {
           <Route path="/posts" element={<Posts />} />
         </Routes>
       </main>
-    </BrowserRouter>
+    </>
   );
 }
 
