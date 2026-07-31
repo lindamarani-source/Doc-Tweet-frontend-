@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+
 // home page component
 function Home() {
   const [tab, setTab] = useState("all");
@@ -16,20 +18,47 @@ function Home() {
 
   // fetch the feed
   useEffect(() => {
-    var url = "http://localhost:5000/api/feed/home?type=" + tab + "&page=1&per_page=20";
+    setLoading(true);
 
-    fetch(url, {
-      headers: {
-        Authorization: "Bearer " + token,
-      },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Something went wrong");
-        return res.json();
-      })
-      .then((data) => {
-        console.log("feed data", data);
-        setFeed(data.items || []);
+    Promise.all([
+      fetch(`${API_BASE}/api/getposts`, {
+        headers: {
+          Authorization: "Bearer " + token,
+        },
+      }),
+      fetch(`${API_BASE}/api/getquestions`, {
+        headers: {
+          Authorization: "Bearer " + token,
+        },
+      }),
+    ])
+      .then(async ([postsRes, questionsRes]) => {
+        if (!postsRes.ok || !questionsRes.ok) {
+          throw new Error("Something went wrong");
+        }
+
+        const [postsData, questionsData] = await Promise.all([
+          postsRes.json(),
+          questionsRes.json(),
+        ]);
+
+        const posts = (postsData || []).map((item) => ({ ...item, type: "post" }));
+        const questions = (questionsData || []).map((item) => ({ ...item, type: "question" }));
+
+        const merged = [...posts, ...questions].sort((a, b) => {
+          const aDate = new Date(a.created_at || 0).getTime();
+          const bDate = new Date(b.created_at || 0).getTime();
+          return bDate - aDate;
+        });
+
+        const filtered =
+          tab === "posts"
+            ? merged.filter((item) => item.type === "post")
+            : tab === "questions"
+            ? merged.filter((item) => item.type === "question")
+            : merged;
+
+        setFeed(filtered);
         setLoading(false);
         setErr("");
         setPage(1);
@@ -43,52 +72,14 @@ function Home() {
 
   // load more posts
   function loadMore() {
-    var nextPage = page + 1;
-    setPage(nextPage);
-    setLoading(true);
-
-    var url =
-      "http://localhost:5000/api/feed/home?type=" +
-      tab +
-      "&page=" +
-      nextPage +
-      "&per_page=20";
-
-    fetch(url, {
-      headers: {
-        Authorization: "Bearer " + token,
-      },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        var newItems = data.items || [];
-        setFeed((old) => old.concat(newItems));
-        setLoading(false);
-      })
-      .catch(() => {
-        setLoading(false);
-      });
+    setLoading(false);
   }
 
-  // open question answers
+  // open question details
   function openQuestion(qid) {
     setSelectedQuestion(qid);
-    setAnsLoading(true);
+    setAnsLoading(false);
     setAnswers([]);
-
-    fetch("http://localhost:5000/api/feed/questions/" + qid + "/answers", {
-      headers: {
-        Authorization: "Bearer " + token,
-      },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setAnswers(data.answers || []);
-        setAnsLoading(false);
-      })
-      .catch(() => {
-        setAnsLoading(false);
-      });
   }
 
   function closeModal() {
