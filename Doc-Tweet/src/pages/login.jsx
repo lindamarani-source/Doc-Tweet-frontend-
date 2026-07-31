@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext/AuthContext';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5555';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://doc-tweet-backend.onrender.com';
 
-function Login() {
+export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [form, setForm] = useState({ username: '', password: '' });
@@ -14,6 +14,12 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (!form.username.trim() || !form.password.trim()) {
+      setError('Username and password are required.');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -22,25 +28,29 @@ function Login() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          username: form.username.trim(),
+          password: form.password,
+        }),
       });
 
-      // Defensive check to handle non-JSON responses gracefully
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Received non-JSON response from server. Check if Flask is running on port 5555.');
-      }
-
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data.error || data.msg || 'Login failed');
+        throw new Error(data.error || data.message || 'Login failed');
       }
 
-      login(data.access_token, data.user);
+      const token = data.access_token || data.token || data.accessToken;
+      const user = data.user || data.member || data.profile || null;
+
+      if (!token) {
+        throw new Error('The server did not return a valid authentication token.');
+      }
+
+      login(token, user);
       navigate('/');
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Login failed');
     } finally {
       setSubmitting(false);
     }
@@ -99,15 +109,10 @@ function Login() {
           </button>
         </form>
       </div>
-
-      <div className="mt-4 text-center text-sm text-slate-600">
-        Don&apos;t have an account?{' '}
-        <Link to="/signup" className="text-[#0052CC] font-semibold hover:underline">
-          Register
-        </Link>
+      <div className="mt-4 text-center text-sm text-gray-600">
+        Don't have an account?{' '}
+        <Link to="/signup" className="text-blue-600 font-medium">Register</Link>
       </div>
     </div>
   );
 }
-
-export default Login;

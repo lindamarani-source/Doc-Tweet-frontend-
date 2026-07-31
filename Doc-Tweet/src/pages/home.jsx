@@ -1,25 +1,21 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
+import { useAuth } from '../AuthContext/AuthContext';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5555";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://doc-tweet-backend.onrender.com';
 
-// Home page component
-function Home() {
-  const [tab, setTab] = useState("all");
+export default function Home() {
+  const { token } = useAuth();
+  const [tab, setTab] = useState('all');
   const [feed, setFeed] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
-  const [selectedQuestion, setSelectedQuestion] = useState(null);
-  const [answers, setAnswers] = useState([]);
-  const [ansLoading, setAnsLoading] = useState(false);
+  const [err, setErr] = useState('');
 
-  // Get token from localStorage
-  const token = localStorage.getItem("token") || "";
+  const authToken = token || localStorage.getItem('token') || localStorage.getItem('doctweet_token') || '';
 
-  // Fetch the feed
   useEffect(() => {
     setLoading(true);
 
-    const headers = token ? { Authorization: "Bearer " + token } : {};
+    const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
 
     Promise.all([
       fetch(`${API_BASE}/api/getposts`, { headers }),
@@ -35,7 +31,7 @@ function Home() {
         }
 
         if (!postsRes.ok || !questionsRes.ok) {
-          throw new Error("Failed to retrieve posts or questions.");
+          throw new Error('Something went wrong');
         }
 
         const [postsData, questionsData] = await Promise.all([
@@ -43,11 +39,8 @@ function Home() {
           questionsRes.json(),
         ]);
 
-        const postsArr = Array.isArray(postsData) ? postsData : [];
-        const questionsArr = Array.isArray(questionsData) ? questionsData : [];
-
-        const posts = postsArr.map((item) => ({ ...item, type: "post" }));
-        const questions = questionsArr.map((item) => ({ ...item, type: "question" }));
+        const posts = (postsData || []).map((item) => ({ ...item, type: 'post' }));
+        const questions = (questionsData || []).map((item) => ({ ...item, type: 'question' }));
 
         const merged = [...posts, ...questions].sort((a, b) => {
           const aDate = new Date(a.created_at || 0).getTime();
@@ -56,114 +49,51 @@ function Home() {
         });
 
         const filtered =
-          tab === "posts"
-            ? merged.filter((item) => item.type === "post")
-            : tab === "questions"
-            ? merged.filter((item) => item.type === "question")
+          tab === 'posts'
+            ? merged.filter((item) => item.type === 'post')
+            : tab === 'questions'
+            ? merged.filter((item) => item.type === 'question')
             : merged;
 
         setFeed(filtered);
         setLoading(false);
-        setErr("");
+        setErr('');
       })
-      .catch((e) => {
-        console.error("Feed error:", e);
-        setErr(e.message || "Failed to load feed");
+      .catch(() => {
+        setErr('Failed to load feed');
         setLoading(false);
       });
-  }, [tab, token]);
+  }, [tab, authToken]);
 
-  // Load more posts placeholder
-  function loadMore() {
-    setLoading(false);
-  }
-
-  // Open question details & fetch answers
-  function openQuestion(qid) {
-    setSelectedQuestion(qid);
-    setAnsLoading(true);
-    setAnswers([]);
-
-    fetch(`${API_BASE}/api/questions/${qid}/answers`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Could not fetch answers");
-        return res.json();
-      })
-      .then((data) => {
-        setAnswers(Array.isArray(data) ? data : []);
-      })
-      .catch((e) => {
-        console.error("Answers error:", e);
-      })
-      .finally(() => {
-        setAnsLoading(false);
-      });
-  }
-
-  function closeModal() {
-    setSelectedQuestion(null);
-    setAnswers([]);
-  }
-
-  // Format date safely
   function timeAgo(iso) {
-    if (!iso) return "";
+    if (!iso) return '';
     const d = new Date(iso);
-    if (isNaN(d.getTime())) return "";
     const now = new Date();
     const sec = (now - d) / 1000;
-    if (sec < 60) return "now";
-    if (sec < 3600) return Math.floor(sec / 60) + "m";
-    if (sec < 86400) return Math.floor(sec / 3600) + "h";
-    if (sec < 604800) return Math.floor(sec / 86400) + "d";
+    if (sec < 60) return 'now';
+    if (sec < 3600) return Math.floor(sec / 60) + 'm';
+    if (sec < 86400) return Math.floor(sec / 3600) + 'h';
+    if (sec < 604800) return Math.floor(sec / 86400) + 'd';
     return d.toLocaleDateString();
   }
 
   return (
-    <div
-      style={{
-        maxWidth: "600px",
-        margin: "0 auto",
-        background: "#fff",
-        minHeight: "100vh",
-        borderLeft: "1px solid #e1e8ed",
-        borderRight: "1px solid #e1e8ed",
-      }}
-    >
+    <div className="max-w-2xl mx-auto bg-white min-h-screen border-l border-r border-gray-200">
       {/* Header */}
-      <div
-        style={{
-          position: "sticky",
-          top: 0,
-          background: "rgba(255,255,255,0.95)",
-          borderBottom: "1px solid #e1e8ed",
-          padding: "16px 20px",
-          zIndex: 100,
-        }}
-      >
-        <h1 style={{ fontSize: "20px", fontWeight: "800", marginBottom: "12px" }}>
-          Home
-        </h1>
-        <div style={{ display: "flex" }}>
-          {["all", "posts", "questions"].map((t) => (
+      <div className="sticky top-0 bg-white/95 backdrop-blur border-b border-gray-200 px-5 py-4 z-50">
+        <h1 className="text-xl font-extrabold mb-3">Home</h1>
+        <div className="flex">
+          {['all', 'posts', 'questions'].map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              style={{
-                flex: 1,
-                textAlign: "center",
-                padding: "12px",
-                cursor: "pointer",
-                fontWeight: 600,
-                color: tab === t ? "#0f1419" : "#536471",
-                borderBottom:
-                  tab === t ? "2px solid #1d9bf0" : "2px solid transparent",
-                background: "none",
-                border: "none",
-                fontSize: "15px",
-              }}
+              className={`flex-1 text-center py-3 font-semibold text-sm border-b-2 transition-colors ${
+                tab === t
+                  ? 'text-gray-900 border-blue-500'
+                  : 'text-gray-500 border-transparent hover:text-gray-700'
+              }`}
             >
-              {t === "all" ? "All" : t === "posts" ? "Posts" : "Questions"}
+              {t === 'all' ? 'All' : t === 'posts' ? 'Posts' : 'Questions'}
             </button>
           ))}
         </div>
@@ -172,25 +102,16 @@ function Home() {
       {/* Feed */}
       <div>
         {loading && feed.length === 0 && (
-          <div style={{ textAlign: "center", padding: "40px", color: "#536471" }}>
-            Loading...
-          </div>
+          <div className="text-center py-10 text-gray-500">Loading...</div>
         )}
 
         {err && (
-          <div style={{ textAlign: "center", padding: "40px", color: "#dc2626" }}>
+          <div className="text-center py-10 text-red-600">
             {err}
             <br />
             <button
               onClick={() => window.location.reload()}
-              style={{
-                marginTop: "12px",
-                color: "#1d9bf0",
-                background: "none",
-                border: "none",
-                fontWeight: "600",
-                cursor: "pointer",
-              }}
+              className="mt-2 text-blue-500 font-medium"
             >
               Refresh
             </button>
@@ -198,594 +119,94 @@ function Home() {
         )}
 
         {!loading && feed.length === 0 && !err && (
-          <div style={{ textAlign: "center", padding: "40px", color: "#536471" }}>
-            Nothing here yet
-          </div>
+          <div className="text-center py-10 text-gray-500">Nothing here yet</div>
         )}
 
         {feed.map((item, idx) => {
-          if (item.type === "post") {
-            const author = typeof item.author === "object" && item.author !== null ? item.author : { username: typeof item.author === "string" ? item.author : "User" };
-            const initial = (author.username || "U").charAt(0).toUpperCase();
+          if (item.type === 'post') {
+            // Backend returns author as a string, not an object
+            const authorName = item.author || 'Unknown';
+            const initial = authorName.charAt(0).toUpperCase();
 
             return (
-              <div
-                key={item.id || idx}
-                style={{
-                  borderBottom: "1px solid #e1e8ed",
-                  padding: "16px 20px",
-                }}
-              >
-                <div style={{ display: "flex", gap: "10px" }}>
-                  <div
-                    style={{
-                      width: "48px",
-                      height: "48px",
-                      borderRadius: "50%",
-                      background: "#1d9bf0",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "white",
-                      fontWeight: "700",
-                      fontSize: "18px",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {author.avatar_url ? (
-                      <img
-                        src={author.avatar_url}
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          borderRadius: "50%",
-                          objectFit: "cover",
-                        }}
-                        alt=""
-                      />
-                    ) : (
-                      initial
-                    )}
+              <div key={idx} className="border-b border-gray-200 px-5 py-4">
+                <div className="flex gap-3">
+                  <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                    {initial}
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <span style={{ fontWeight: 700, color: "#0f1419" }}>
-                        {author.full_name || author.username || "Unknown"}
-                      </span>
-                      {author.is_verified && (
-                        <span style={{ color: "#1d9bf0" }}>&#10003;</span>
-                      )}
-                      {author.is_doctor && (
-                        <span
-                          style={{
-                            fontSize: "11px",
-                            padding: "2px 8px",
-                            borderRadius: "12px",
-                            fontWeight: 700,
-                            textTransform: "uppercase",
-                            background: "#1d9bf0",
-                            color: "white",
-                          }}
-                        >
-                          Doctor
-                        </span>
-                      )}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-bold text-gray-900">{authorName}</span>
                     </div>
-                    <div style={{ color: "#536471", fontSize: "15px" }}>
-                      @{author.username || "unknown"} · {timeAgo(item.created_at)}
+                    <div className="text-gray-500 text-sm">
+                      @{authorName.toLowerCase().replace(/\s+/g, '')} · {timeAgo(item.created_at)}
                     </div>
-                    {author.specialization && (
-                      <div style={{ fontSize: "13px", color: "#536471" }}>
-                        {author.specialization}
-                      </div>
-                    )}
-                    <div
-                      style={{
-                        fontSize: "12px",
-                        color: "#536471",
-                        marginBottom: "4px",
-                        fontWeight: 600,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.5px",
-                      }}
-                    >
+                    <div className="text-xs text-gray-500 mb-1 font-semibold uppercase tracking-wide">
                       Post
                     </div>
-                    {item.title && (
-                      <div
-                        style={{
-                          fontSize: "17px",
-                          fontWeight: 700,
-                          marginBottom: "6px",
-                        }}
-                      >
-                        {item.title}
-                      </div>
-                    )}
-                    <div
-                      style={{
-                        fontSize: "15px",
-                        color: "#0f1419",
-                        whiteSpace: "pre-wrap",
-                      }}
-                    >
-                      {item.content}
-                    </div>
+                    <div className="text-lg font-bold mb-1.5">{item.title}</div>
+                    <div className="text-gray-900 whitespace-pre-wrap">{item.content}</div>
                     {item.image_url && (
-                      <div
-                        style={{
-                          marginTop: "12px",
-                          borderRadius: "16px",
-                          overflow: "hidden",
-                          border: "1px solid #e1e8ed",
-                        }}
-                      >
-                        <img
-                          src={item.image_url}
-                          style={{ width: "100%", display: "block" }}
-                          alt=""
-                        />
+                      <div className="mt-3 rounded-2xl overflow-hidden border border-gray-200">
+                        <img src={item.image_url} className="w-full block" alt="" />
                       </div>
                     )}
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: "24px",
-                        marginTop: "12px",
-                        color: "#536471",
-                        fontSize: "14px",
-                      }}
-                    >
-                      <span>&#9829; {item.likes_count || 0}</span>
+                    <div className="flex gap-6 mt-3 text-gray-500 text-sm">
+                      <span>♥ {item.likes_count || 0}</span>
                     </div>
                   </div>
                 </div>
               </div>
             );
           } else {
-            // Question item
+            // Question
             const q = item;
-            const qAuthor = typeof q.author === "object" && q.author !== null ? q.author : { username: typeof q.author === "string" ? q.author : "User" };
+            const qAuthor = q.author || 'Unknown';
             const isAnon = q.is_anonymous;
+            const authorName = isAnon ? 'Anonymous' : qAuthor;
+            const initial = authorName.charAt(0).toUpperCase();
 
             return (
-              <div
-                key={q.id || idx}
-                style={{
-                  borderBottom: "1px solid #e1e8ed",
-                  padding: "16px 20px",
-                  cursor: "pointer",
-                }}
-                onClick={() => openQuestion(q.id)}
-              >
-                <div style={{ display: "flex", gap: "10px" }}>
-                  {isAnon ? (
-                    <div
-                      style={{
-                        width: "48px",
-                        height: "48px",
-                        borderRadius: "50%",
-                        background: "#536471",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "white",
-                        fontWeight: "700",
-                        fontSize: "18px",
-                        flexShrink: 0,
-                      }}
-                    >
-                      ?
-                    </div>
-                  ) : (
-                    <div
-                      style={{
-                        width: "48px",
-                        height: "48px",
-                        borderRadius: "50%",
-                        background: "#1d9bf0",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "white",
-                        fontWeight: "700",
-                        fontSize: "18px",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {qAuthor.avatar_url ? (
-                        <img
-                          src={qAuthor.avatar_url}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            borderRadius: "50%",
-                            objectFit: "cover",
-                          }}
-                          alt=""
-                        />
-                      ) : (
-                        (qAuthor.username || "U").charAt(0).toUpperCase()
-                      )}
-                    </div>
-                  )}
-                  <div style={{ flex: 1 }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      {isAnon ? (
-                        <>
-                          <span style={{ fontWeight: 700, color: "#0f1419" }}>
-                            Anonymous
-                          </span>
-                          <span
-                            style={{
-                              fontSize: "11px",
-                              padding: "2px 8px",
-                              borderRadius: "12px",
-                              fontWeight: 700,
-                              textTransform: "uppercase",
-                              background: "#536471",
-                              color: "white",
-                            }}
-                          >
-                            Anonymous
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <span style={{ fontWeight: 700, color: "#0f1419" }}>
-                            {qAuthor.full_name || qAuthor.username || "Unknown"}
-                          </span>
-                          {qAuthor.is_verified && (
-                            <span style={{ color: "#1d9bf0" }}>&#10003;</span>
-                          )}
-                        </>
+              <div key={idx} className="border-b border-gray-200 px-5 py-4">
+                <div className="flex gap-3">
+                  <div
+                    className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0 ${
+                      isAnon ? 'bg-gray-500' : 'bg-blue-500'
+                    }`}
+                  >
+                    {isAnon ? '?' : initial}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-bold text-gray-900">{authorName}</span>
+                      {isAnon && (
+                        <span className="text-xs px-2 py-0.5 rounded-full font-bold uppercase bg-gray-500 text-white">
+                          Anonymous
+                        </span>
                       )}
                       {q.is_resolved && (
-                        <span
-                          style={{
-                            fontSize: "11px",
-                            padding: "2px 8px",
-                            borderRadius: "12px",
-                            fontWeight: 700,
-                            textTransform: "uppercase",
-                            background: "#00ba7c",
-                            color: "white",
-                          }}
-                        >
+                        <span className="text-xs px-2 py-0.5 rounded-full font-bold uppercase bg-green-500 text-white">
                           Resolved
                         </span>
                       )}
                     </div>
-                    {!isAnon && qAuthor && (
-                      <div style={{ color: "#536471", fontSize: "15px" }}>
-                        @{qAuthor.username || "unknown"} · {timeAgo(q.created_at)}
+                    {!isAnon && (
+                      <div className="text-gray-500 text-sm">
+                        @{qAuthor.toLowerCase().replace(/\s+/g, '')} · {timeAgo(q.created_at)}
                       </div>
                     )}
-                    <div
-                      style={{
-                        fontSize: "12px",
-                        color: "#536471",
-                        marginBottom: "4px",
-                        fontWeight: 600,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.5px",
-                      }}
-                    >
+                    <div className="text-xs text-gray-500 mb-1 font-semibold uppercase tracking-wide">
                       Question
                     </div>
-                    {q.title && (
-                      <div
-                        style={{
-                          fontSize: "17px",
-                          fontWeight: 700,
-                          marginBottom: "6px",
-                        }}
-                      >
-                        {q.title}
-                      </div>
-                    )}
-                    <div
-                      style={{
-                        fontSize: "15px",
-                        color: "#0f1419",
-                        whiteSpace: "pre-wrap",
-                      }}
-                    >
-                      {q.content}
-                    </div>
-
-                    {/* Answers Preview */}
-                    {q.top_answers && q.top_answers.length > 0 && (
-                      <div
-                        style={{
-                          marginTop: "12px",
-                          background: "#f7f9fa",
-                          borderRadius: "12px",
-                          padding: "12px",
-                        }}
-                      >
-                        {q.top_answers.map((ans) => (
-                          <div
-                            key={ans.id}
-                            style={{
-                              padding: "8px 0",
-                              borderBottom: "1px solid #e1e8ed",
-                              fontSize: "14px",
-                            }}
-                          >
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "6px",
-                                marginBottom: "4px",
-                              }}
-                            >
-                              <span style={{ fontWeight: 700, fontSize: "13px" }}>
-                                {ans.author && ans.author.username
-                                  ? ans.author.username
-                                  : "Unknown"}
-                              </span>
-                              {ans.is_doctor_answer && (
-                                <span
-                                  style={{
-                                    fontSize: "11px",
-                                    background: "#1d9bf0",
-                                    color: "white",
-                                    padding: "2px 8px",
-                                    borderRadius: "12px",
-                                    fontWeight: 700,
-                                  }}
-                                >
-                                  Doctor
-                                </span>
-                              )}
-                            </div>
-                            <div>{ans.content}</div>
-                          </div>
-                        ))}
-                        <span
-                          style={{
-                            color: "#1d9bf0",
-                            fontSize: "14px",
-                            fontWeight: 600,
-                            marginTop: "8px",
-                            display: "inline-block",
-                          }}
-                        >
-                          View all {q.answer_count || 0} answers
-                        </span>
-                      </div>
-                    )}
-
-                    {(!q.top_answers || q.top_answers.length === 0) && (
-                      <div style={{ marginTop: "12px" }}>
-                        <span
-                          style={{
-                            color: "#1d9bf0",
-                            fontSize: "14px",
-                            fontWeight: 600,
-                          }}
-                        >
-                          Be the first to answer
-                        </span>
-                      </div>
-                    )}
+                    <div className="text-lg font-bold mb-1.5">{q.title}</div>
+                    <div className="text-gray-900 whitespace-pre-wrap">{q.content}</div>
                   </div>
                 </div>
               </div>
             );
           }
         })}
-
-        {feed.length > 0 && !loading && (
-          <button
-            onClick={loadMore}
-            style={{
-              width: "100%",
-              padding: "16px",
-              background: "none",
-              border: "none",
-              color: "#1d9bf0",
-              fontWeight: 600,
-              cursor: "pointer",
-              borderBottom: "1px solid #e1e8ed",
-            }}
-          >
-            Load more
-          </button>
-        )}
       </div>
-
-      {/* Answers Modal */}
-      {selectedQuestion && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(0,0,0,0.5)",
-            zIndex: 200,
-            display: "flex",
-            alignItems: "flex-end",
-            justifyContent: "center",
-          }}
-          onClick={closeModal}
-        >
-          <div
-            style={{
-              background: "white",
-              width: "100%",
-              maxWidth: "600px",
-              maxHeight: "85vh",
-              borderRadius: "20px 20px 0 0",
-              overflow: "hidden",
-              display: "flex",
-              flexDirection: "column",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              style={{
-                padding: "16px 20px",
-                borderBottom: "1px solid #e1e8ed",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                position: "sticky",
-                top: 0,
-                background: "white",
-              }}
-            >
-              <h3 style={{ fontSize: "17px", fontWeight: 800 }}>Answers</h3>
-              <button
-                onClick={closeModal}
-                style={{
-                  background: "none",
-                  border: "none",
-                  fontSize: "24px",
-                  cursor: "pointer",
-                  color: "#536471",
-                }}
-              >
-                &times;
-              </button>
-            </div>
-            <div style={{ overflowY: "auto", padding: "0 20px", flex: 1 }}>
-              {ansLoading && (
-                <div style={{ textAlign: "center", padding: "40px", color: "#536471" }}>
-                  Loading answers...
-                </div>
-              )}
-
-              {!ansLoading && answers.length === 0 && (
-                <div style={{ textAlign: "center", padding: "40px", color: "#536471" }}>
-                  No answers yet
-                </div>
-              )}
-
-              {answers.map((ans, i) => {
-                const a = typeof ans.author === "object" && ans.author !== null ? ans.author : { username: typeof ans.author === "string" ? ans.author : "User" };
-                const init = (a.username || "U").charAt(0).toUpperCase();
-
-                return (
-                  <div
-                    key={ans.id || i}
-                    style={{
-                      padding: "16px 0",
-                      borderBottom: "1px solid #e1e8ed",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        marginBottom: "8px",
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: "32px",
-                          height: "32px",
-                          borderRadius: "50%",
-                          background: "#1d9bf0",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "white",
-                          fontWeight: "700",
-                          fontSize: "14px",
-                          flexShrink: 0,
-                        }}
-                      >
-                        {a.avatar_url ? (
-                          <img
-                            src={a.avatar_url}
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              borderRadius: "50%",
-                              objectFit: "cover",
-                            }}
-                            alt=""
-                          />
-                        ) : (
-                          init
-                        )}
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: "14px" }}>
-                          {a.full_name || a.username || "Unknown"}
-                          {a.is_verified && (
-                            <span style={{ color: "#1d9bf0", fontSize: "14px" }}>
-                              {" "}
-                              &#10003;
-                            </span>
-                          )}
-                          {ans.is_doctor_answer && (
-                            <span
-                              style={{
-                                fontSize: "11px",
-                                background: "#1d9bf0",
-                                color: "white",
-                                padding: "2px 8px",
-                                borderRadius: "12px",
-                                fontWeight: 700,
-                                marginLeft: "6px",
-                              }}
-                            >
-                              Doctor
-                            </span>
-                          )}
-                        </div>
-                        <div style={{ fontSize: "13px", color: "#536471" }}>
-                          @{a.username || "unknown"} · {timeAgo(ans.created_at)}
-                        </div>
-                        {a.specialization && (
-                          <div style={{ fontSize: "12px", color: "#536471" }}>
-                            {a.specialization}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div style={{ fontSize: "15px", lineHeight: "1.5" }}>
-                      {ans.content}
-                    </div>
-                    <div
-                      style={{
-                        marginTop: "8px",
-                        color: "#536471",
-                        fontSize: "14px",
-                      }}
-                    >
-                      &#9829; {ans.likes_count || 0}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
-
-export default Home;

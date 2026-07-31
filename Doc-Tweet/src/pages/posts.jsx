@@ -1,14 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '../AuthContext/AuthContext';
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://doc-tweet-backend.onrender.com';
 
 export default function Posts() {
+  const { user, token } = useAuth();
   const [questions, setQuestions] = useState([]);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  
+  const authToken = token || localStorage.getItem('token') || localStorage.getItem('doctweet_token') || '';
+
   const fetchQuestions = () => {
-    fetch('http://localhost:5555/api/getquestions')
+    const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+    fetch(`${API_BASE}/api/getquestions`, { headers })
       .then((res) => res.json())
       .then((data) => setQuestions(data))
       .catch((err) => console.log('Error fetching questions:', err));
@@ -18,29 +26,42 @@ export default function Posts() {
     fetchQuestions();
   }, []);
 
-  
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title.trim() || !content.trim()) return;
 
-    fetch('http://localhost:5555/api/questions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: title,
-        content: content,
-        author: 'Dr. Alex', 
-        is_anonymous: isAnonymous
-      })
-    })
-      .then((res) => res.json())
-      .then(() => {
-        setTitle('');
-        setContent('');
-        setIsAnonymous(false);
-        fetchQuestions(); 
-      })
-      .catch((err) => console.log('Error saving question:', err));
+    setSubmitting(true);
+    setError('');
+
+    try {
+      const response = await fetch(`${API_BASE}/api/questions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          title: title,
+          content: content,
+          author: isAnonymous ? 'Anonymous' : (user?.username || 'Unknown'),
+          is_anonymous: isAnonymous,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || data.message || 'Failed to post question');
+      }
+
+      setTitle('');
+      setContent('');
+      setIsAnonymous(false);
+      fetchQuestions();
+    } catch (err) {
+      setError(err.message || 'Error saving question');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -65,6 +86,10 @@ export default function Posts() {
           onChange={(e) => setContent(e.target.value)}
         />
 
+        {error && (
+          <div className="mb-3 p-2.5 rounded bg-red-50 text-red-700 text-sm">{error}</div>
+        )}
+
         <div className="flex items-center justify-between">
           <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
             <input
@@ -78,9 +103,10 @@ export default function Posts() {
 
           <button
             type="submit"
-            className="bg-blue-600 text-white px-5 py-2 rounded-md hover:bg-blue-700 text-sm font-medium"
+            disabled={submitting}
+            className="bg-blue-600 text-white px-5 py-2 rounded-md hover:bg-blue-700 text-sm font-medium disabled:opacity-60"
           >
-            Submit Question
+            {submitting ? 'Submitting...' : 'Submit Question'}
           </button>
         </div>
       </form>
