@@ -22,6 +22,14 @@ export default function Home() {
       fetch(`${API_BASE}/api/getquestions`, { headers }),
     ])
       .then(async ([postsRes, questionsRes]) => {
+        // Defensive check for JSON headers
+        const postsType = postsRes.headers.get("content-type") || "";
+        const questionsType = questionsRes.headers.get("content-type") || "";
+
+        if (!postsType.includes("application/json") || !questionsType.includes("application/json")) {
+          throw new Error("Received non-JSON response from backend. Make sure Flask is running on port 5555.");
+        }
+
         if (!postsRes.ok || !questionsRes.ok) {
           throw new Error('Something went wrong');
         }
