@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5555';
 
 export default function Profile() {
   const [profile, setProfile] = useState(null);
@@ -38,6 +38,35 @@ export default function Profile() {
       });
   }, [token]);
 
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    setMessage('');
+
+    try {
+      const res = await fetch(`${API_BASE}/api/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          username: username
+        })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setMessage('Profile updated successfully!');
+        setProfile(prev => ({ ...prev, username: data.username || username }));
+      } else {
+        setMessage(data.msg || 'Update failed');
+      }
+    } catch (err) {
+      setMessage('Server error while saving profile updates.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[40vh]">
@@ -55,36 +84,66 @@ export default function Profile() {
           {message}
         </div>
       )}
-
+      
       {profile && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100">
-            Account Settings
-          </h3>
+        <>
+          {/* Account Settings */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 className="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100">
+              Account Settings
+            </h3>
 
-          <div className="space-y-4">
-            <div className="text-sm text-gray-600">
-              <span className="font-semibold text-gray-700">Email: </span>
-              {profile.email}
-            </div>
+            <div className="space-y-4">
+              <div className="text-sm text-gray-600">
+                <span className="font-semibold text-gray-700">Email: </span>
+                {profile.email}
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                readOnly
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                />
+              </div>
 
-            <div className="text-sm text-gray-600">
-              <span className="font-semibold text-gray-700">Role: </span>
-              {profile.role || 'member'}
+              <div className="text-sm text-gray-600">
+                <span className="font-semibold text-gray-700">Role: </span>
+                {profile.role || 'member'}
+              </div>
             </div>
           </div>
-        </div>
+
+          {/* Favorite Doctors */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 className="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
+              Favorite Doctors
+            </h3>
+
+            {!profile.favorite_doctors || profile.favorite_doctors.length === 0 ? (
+              <p className="text-gray-500 italic text-sm">
+                You haven't saved any favorite doctors yet.
+              </p>
+            ) : (
+              <ul className="divide-y divide-gray-100">
+                {profile.favorite_doctors.map((doc) => (
+                  <li key={doc.id} className="py-3 flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-gray-800">
+                        Dr. {doc.name || doc.username}
+                      </p>
+                      {doc.specialty && (
+                        <p className="text-sm text-gray-500">{doc.specialty}</p>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
