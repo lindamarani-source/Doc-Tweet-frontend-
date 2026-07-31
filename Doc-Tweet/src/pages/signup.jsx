@@ -1,3 +1,5 @@
+import React from "react";
+export default function Signup() { return <div className="p-8">Signup Page</div>; }
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 

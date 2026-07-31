@@ -1,3 +1,18 @@
+import React from 'react';
+
+export default function Home() {
+  return (
+    <div className="max-w-4xl mx-auto p-8 text-center">
+      <h1 className="text-3xl font-bold text-gray-800 mb-4">Welcome to DocTweet</h1>
+      <a 
+        href="/posts" 
+        className="inline-block bg-blue-600 text-white px-6 py-2.5 rounded-md hover:bg-blue-700 transition-colors"
+      >
+        View Medical Questions (/posts)
+      </a>
+    </div>
+  );
+}
 import { useState, useEffect } from "react";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://doc-tweet-backend.onrender.com";
