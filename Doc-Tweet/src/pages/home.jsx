@@ -131,7 +131,7 @@ export default function Home() {
             return (
               <div key={idx} className="border-b border-gray-200 px-5 py-4">
                 <div className="flex gap-3">
-                  <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                  <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-lg shrink-0">
                     {initial}
                   </div>
                   <div className="flex-1">
@@ -170,7 +170,7 @@ export default function Home() {
               <div key={idx} className="border-b border-gray-200 px-5 py-4">
                 <div className="flex gap-3">
                   <div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0 ${
+                    className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0 ${
                       isAnon ? 'bg-gray-500' : 'bg-blue-500'
                     }`}
                   >
