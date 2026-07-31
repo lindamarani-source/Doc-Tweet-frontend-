@@ -1,0 +1,41 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main, Marani]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: Doc-Tweet/package-lock.json
+
+      - name: Install dependencies
+        working-directory: Doc-Tweet
+        run: npm ci
+
+      - name: Build
+        working-directory: Doc-Tweet
+        run: npm run build
+
+      - name: Create 404.html for SPA routing
+        run: cp Doc-Tweet/dist/index.html Doc-Tweet/dist/404.html
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./Doc-Tweet/dist
+          publish_branch: gh-pages
