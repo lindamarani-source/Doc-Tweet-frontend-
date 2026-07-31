@@ -1,85 +1,68 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+const AuthContext = createContext(null);
 
-const AuthContext = createContext(null)
-
-function AuthProvider({ children }) {
-  const [user, setUser] = useState(null) 
-  const [token, setToken] = useState(localStorage.getItem('token') || null)
-  const [loading, setLoading] = useState(true)
-
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(() => localStorage.getItem("token") || null);
+  const [loading, setLoading] = useState(true);
 
   const login = (newToken, userData) => {
-    localStorage.setItem('token', newToken)
-    setToken(newToken)
-    setUser(userData)
-  }
+    localStorage.setItem("token", newToken);
+    setToken(newToken);
+    setUser(userData);
+  };
 
   const logout = () => {
-    localStorage.removeItem('token')
-    setToken(null)
-    setUser(null)
-  }
-  
-  useEffect(() => {    
-    if (token) {
-      fetch(input, {
-        headers: { 'Authorization': `Bearer ${token}` }
-        })
-        .then(response => response.json())
-        .then(data => {
-          setUser(data.user)
-          setLoading(false)
-          logout()
-        })
-        .catch(error => {
-          console.error(error)
-          setLoading(false)
-        })
-    }
-  }, [token])
+    localStorage.removeItem("token");
+    setToken(null);
+    setUser(null);
+  };
 
   useEffect(() => {
-    const chechAuthStatus = async () => {
-      const savedToken = localStorage.getItem('token');
-      if (!savedToken) {
-        setLoading(false)
-        return;
-      }
+    const savedToken = localStorage.getItem("token");
+    if (!savedToken) {
+      setLoading(false);
+      return;
+    }
 
+    const checkAuthStatus = async () => {
       try {
-        const response = await fetch('', {
-          method: 'GET',
+        const response = await fetch(`${API_BASE}/api/current_user`, {
+          method: "GET",
           headers: {
-            'Authorization': `Bearer ${savedToken}`,
-            'content-type': 'application/json'
-          }
+            Authorization: `Bearer ${savedToken}`,
+            "content-type": "application/json",
+          },
         });
+
         const data = await response.json();
 
-        if (response.ok) {
-          setUser(data.user);
-        } else {
-          console.warn('Invalid token');
-          localStorage.removeItem('token');
-          setToken(null);
-          setUser(null);
+        if (!response.ok) {
+          throw new Error(data?.msg || "Invalid token");
         }
+
+        setUser(data);
+        setToken(savedToken);
       } catch (error) {
-        console.error('Network error')
+        console.warn("Auth check failed:", error);
+        logout();
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
-    chechAuthStatus();
+    };
+
+    checkAuthStatus();
   }, []);
 
-  
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, setUser, token, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
-  )
+  );
 }
 
-export const useAuth = () => useContext(AuthContext)
+export default AuthProvider;
+
+export const useAuth = () => useContext(AuthContext);
