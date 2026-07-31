@@ -4,11 +4,14 @@ import { useAuth } from '../AuthContext/AuthContext';
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://doc-tweet-backend.onrender.com';
 
 export default function Home() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [tab, setTab] = useState('all');
   const [feed, setFeed] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
+  const [answerDrafts, setAnswerDrafts] = useState({});
+  const [answering, setAnswering] = useState({});
+  const [answerErrors, setAnswerErrors] = useState({});
 
   const authToken = token || localStorage.getItem('token') || localStorage.getItem('doctweet_token') || '';
 
@@ -75,6 +78,74 @@ export default function Home() {
     if (sec < 86400) return Math.floor(sec / 3600) + 'h';
     if (sec < 604800) return Math.floor(sec / 86400) + 'd';
     return d.toLocaleDateString();
+  }
+
+  async function submitAnswer(question) {
+    const answer = (answerDrafts[question.id] || '').trim();
+    if (!answer) return;
+
+    setAnswering((current) => ({ ...current, [question.id]: true }));
+    setAnswerErrors((current) => ({ ...current, [question.id]: '' }));
+
+    const endpoints = [
+      `${API_BASE}/api/questions/${question.id}/answers`,
+      `${API_BASE}/api/questions/${question.id}/answer`,
+      `${API_BASE}/api/answers`,
+    ];
+
+    const payload = {
+      content: answer,
+      question_id: question.id,
+      author: user?.username || 'Unknown',
+    };
+
+    let lastError = 'Failed to save answer';
+
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (response.ok) {
+          const data = await response.json().catch(() => null);
+          const newAnswer = {
+            content: answer,
+            author: user?.username || 'Unknown',
+            created_at: new Date().toISOString(),
+            ...(data || {}),
+          };
+
+          setFeed((current) =>
+            current.map((item) =>
+              item.id === question.id && item.type === 'question'
+                ? {
+                    ...item,
+                    answers: [...(item.answers || []), newAnswer],
+                  }
+                : item,
+            ),
+          );
+
+          setAnswerDrafts((current) => ({ ...current, [question.id]: '' }));
+          setAnswerErrors((current) => ({ ...current, [question.id]: '' }));
+          return;
+        }
+
+        const data = await response.json().catch(() => ({}));
+        lastError = data.error || data.message || 'Failed to save answer';
+      } catch (submissionError) {
+        lastError = submissionError.message || 'Failed to save answer';
+      }
+    }
+
+    setAnswerErrors((current) => ({ ...current, [question.id]: lastError }));
+    setAnswering((current) => ({ ...current, [question.id]: false }));
   }
 
   return (
@@ -200,6 +271,58 @@ export default function Home() {
                     </div>
                     <div className="text-lg font-bold mb-1.5">{q.title}</div>
                     <div className="text-gray-900 whitespace-pre-wrap">{q.content}</div>
+
+                    {(q.answers || []).length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Answers
+                        </div>
+                        {(q.answers || []).map((answer, answerIndex) => (
+                          <div
+                            key={`${q.id}-answer-${answerIndex}`}
+                            className="border border-gray-200 rounded-lg bg-gray-50 p-3 text-sm text-gray-700"
+                          >
+                            <div className="font-semibold text-gray-900 mb-1">
+                              {answer.author || 'Unknown'}
+                            </div>
+                            <div className="whitespace-pre-wrap">{answer.content}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="mt-4 border-t border-gray-200 pt-3">
+                      <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+                        Add an answer
+                      </label>
+                      <textarea
+                        rows="3"
+                        value={answerDrafts[q.id] || ''}
+                        onChange={(e) =>
+                          setAnswerDrafts((current) => ({
+                            ...current,
+                            [q.id]: e.target.value,
+                          }))
+                        }
+                        placeholder="Write a helpful answer..."
+                        className="w-full p-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+
+                      {answerErrors[q.id] && (
+                        <div className="mt-2 text-sm text-red-600">{answerErrors[q.id]}</div>
+                      )}
+
+                      <div className="mt-2 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => submitAnswer(q)}
+                          disabled={answering[q.id]}
+                          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm font-medium disabled:opacity-60"
+                        >
+                          {answering[q.id] ? 'Posting...' : 'Post Answer'}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
