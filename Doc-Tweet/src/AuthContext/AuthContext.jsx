@@ -48,7 +48,7 @@ function AuthProvider({ children }) {
       }
 
       try {
-        const response = await fetch(input, {
+        const response = await fetch('', {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${savedToken}`,
